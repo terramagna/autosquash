@@ -252,12 +252,80 @@ const fetchPullRequestCoAuthors = async ({
   return coAuthors;
 };
 
+const fetchPullRequestReviewers = async ({
+  github,
+  owner,
+  pullRequestNumber,
+  repo
+}: {
+  github: GitHub;
+  owner: string;
+  pullRequestNumber: number;
+  repo: string;
+}): Promise<{ commentaries: Author[], reviewers: Author[] }> => {
+    const { data: reviews }: Octokit.Response<Octokit.PullsListReviewsResponse> = await github.pulls.listReviews({
+      owner,
+      pull_number: pullRequestNumber,
+      repo,
+    });
+
+    const reviewAuthorsState: Map<string, "APPROVED" | "COMMENTED"> = new Map();
+    const reviewers: Author[] = [];
+    const commentaries: Author[] = [];
+
+    const promises: Array<Promise<unknown>> = [];
+
+    for (const review of reviews) {
+      switch (review.state) {
+        case "APPROVED":
+          switch (reviewAuthorsState.get(review.user.login)) {
+            case undefined:
+            case "COMMENTED":
+              reviewAuthorsState.set(review.user.login, "APPROVED");
+              break;
+            default:
+          }
+
+          break;
+        case "COMMENTED":
+          switch (reviewAuthorsState.get(review.user.login)) {
+            case undefined:
+              reviewAuthorsState.set(review.user.login, "COMMENTED");
+              break;
+            default:
+          }
+
+          break;
+        default:
+      }
+    }
+
+    for (const [author, state] of reviewAuthorsState.entries()) {
+        switch (state) {
+          case "APPROVED":
+            promises.push(github.users.getByUsername({ username: author })
+              .then(({data: user }) => reviewers.push({ email: user.email, name: user.name  })));
+            break;
+          case "COMMENTED":
+            promises.push(github.users.getByUsername({ username: author })
+              .then(({data: user }) => commentaries.push({ email: user.email, name: user.name  })));
+            break;
+          default:
+        }
+    }
+
+    await Promise.all(promises);
+
+    return { commentaries, reviewers };
+};
+
 // Use the pull request body, up to its first thematic break, as the squashed commit message.
 // Indeed, the PR body often contains an interesting description
 // and it's better to avoid the titles of intermediate
 // commits such as "fix CI" or "formatting" being
 // part of the squashed commit message.
-// Also add the authors of commits in the pull request as co-authors of the squashed commit.
+// Also add the authors of commits in the pull request as co-authors of the squashed commit,
+// the reviewers, and whoever made comments-only reviews.
 // See https://github.blog/changelog/2019-12-19-improved-attribution-when-squashing-commits/.
 // GitHub only automatically appends the co-author lines when the squashed commit message is
 // left untouched to be the list of the PR's commits title and message.
@@ -265,9 +333,13 @@ const fetchPullRequestCoAuthors = async ({
 const getSquashedCommitMessage = ({
   body,
   coAuthors,
+  commentaries,
+  reviewers
 }: {
   body: string;
   coAuthors: Author[];
+  commentaries: Author[];
+  reviewers: Author[];
 }): string => {
   const prBody = filterBody(body);
 
@@ -278,7 +350,13 @@ const getSquashedCommitMessage = ({
   const coAuthorLines = coAuthors.map(
     ({ email, name }) => `Co-authored-by: ${name} <${email}>`,
   );
-  return [prBody, "", ...coAuthorLines].join("\n");
+  const commentariesLines = commentaries.map(
+    ({ email, name }) => `Cc: ${name} <${email}>`,
+  );
+  const reviewersLines = reviewers.map(
+    ({ email, name }) => `Reviewed-by: ${name} <${email}>`
+  );
+  return [prBody, "", ...coAuthorLines, "", ...reviewersLines, "", ...commentariesLines].join("\n");
 };
 
 const merge = async ({
@@ -305,10 +383,17 @@ const merge = async ({
     pullRequestNumber,
     repo,
   });
+  const { commentaries, reviewers } = await fetchPullRequestReviewers({
+    github,
+    owner,
+    pullRequestNumber,
+    repo
+  });
+
   try {
     info("Attempting merge");
     await github.pulls.merge({
-      commit_message: getSquashedCommitMessage({ body, coAuthors }),
+      commit_message: getSquashedCommitMessage({ body, coAuthors, commentaries, reviewers }),
       // Same syntax GitHub uses by default.
       commit_title: `${title} (#${pullRequestNumber})`,
       merge_method: "squash",
