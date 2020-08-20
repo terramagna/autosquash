@@ -35,7 +35,7 @@ type Author = {
   name: string;
 };
 
-const autosquashLabel = "autosquash";
+const noAutosquashLabel = "no-autosquash";
 
 const updateableMergeableStates: MergeableState[] = [
   // When "Require branches to be up to date before merging" is checked
@@ -67,8 +67,8 @@ const isCandidate = ({
     return false;
   }
 
-  if (!labels.some(({ name }) => name === autosquashLabel)) {
-    info(`No ${autosquashLabel} label`);
+  if (labels.some(({ name }) => name === noAutosquashLabel)) {
+    info(`${noAutosquashLabel} label found, ignoring`);
     return false;
   }
 
@@ -166,7 +166,7 @@ const handleSearchedPullRequests = async ({
   query: string;
   repo: string;
 }) => {
-  const fullQuery = `is:pr is:open label:"${autosquashLabel}" repo:${owner}/${repo} ${query}`;
+  const fullQuery = `is:pr is:open -label:"${noAutosquashLabel}" repo:${owner}/${repo} ${query}`;
   const {
     data: { incomplete_results, items },
   } = await github.search.issuesAndPullRequests({

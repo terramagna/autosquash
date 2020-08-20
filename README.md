@@ -17,7 +17,7 @@ Pull requests with the `autosquash` label will be:
 # Usage
 
 - Add this [.github/workflows/autosquash.yml](.github/workflows/autosquash.yml) to your repository.
-- [Add the `autosquash` label](https://help.github.com/en/articles/creating-a-label) to pull requests you want to merge.
+- [Add the `no-autosquash` label](https://help.github.com/en/articles/creating-a-label) to pull requests you don't want to merge.
 
 # Why squash and merge?
 
