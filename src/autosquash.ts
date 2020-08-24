@@ -511,7 +511,7 @@ const autosquash = async ({
       payload.action === "labeled" &&
       // The payload has a label property when the action is "labeled".
       // @ts-ignore
-      payload.label.name === autosquashLabel
+      payload.label.name !== noAutosquashLabel
     ) {
       info(`Consider merging or updating ${getPullRequestId(payload.number)}`);
       const pullRequest = await fetchPullRequest({
