@@ -316,6 +316,9 @@ const fetchPullRequestReviewers = async ({
 
     await Promise.all(promises);
 
+    info(`Commentaries: ${commentaries}`);
+    info(`Reviwers: ${reviewers}`);
+
     return { commentaries, reviewers };
 };
 
@@ -343,10 +346,6 @@ const getSquashedCommitMessage = ({
 }): string => {
   const prBody = filterBody(body);
 
-  if (coAuthors.length === 0) {
-    return prBody;
-  }
-
   const coAuthorLines = coAuthors.map(
     ({ email, name }) => `Co-authored-by: ${name} <${email}>`,
   );
@@ -356,7 +355,17 @@ const getSquashedCommitMessage = ({
   const reviewersLines = reviewers.map(
     ({ email, name }) => `Reviewed-by: ${name} <${email}>`
   );
-  return [prBody, "", ...coAuthorLines, "", ...reviewersLines, "", ...commentariesLines].join("\n");
+
+  let parts = [prBody];
+
+  for (const lines of [coAuthorLines, reviewersLines, commentariesLines]) {
+    if (lines.length !== 0) {
+      parts.push("");
+      parts = [...parts, ...lines];
+    }
+  }
+
+  return parts.join("\n");
 };
 
 const merge = async ({
