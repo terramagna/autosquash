@@ -356,14 +356,7 @@ const getSquashedCommitMessage = ({
     ({ email, name }) => `Reviewed-by: ${name} <${email}>`
   );
 
-  let parts = [prBody];
-
-  for (const lines of [coAuthorLines, reviewersLines, commentariesLines]) {
-    if (lines.length !== 0) {
-      parts.push("");
-      parts = [...parts, ...lines];
-    }
-  }
+  let parts = [prBody, ...coAuthorLines, ...reviewersLines, ...commentariesLines];
 
   return parts.join("\n");
 };
