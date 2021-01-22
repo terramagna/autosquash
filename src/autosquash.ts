@@ -366,7 +366,7 @@ const merge = async ({
   owner,
   pullRequest: {
     body,
-    head: { sha },
+    head: { sha, ref },
     number: pullRequestNumber,
     title,
     user: { login: pullRequestCreator },
@@ -378,27 +378,41 @@ const merge = async ({
   pullRequest: Octokit.PullsGetResponse;
   repo: string;
 }) => {
-  const coAuthors = await fetchPullRequestCoAuthors({
-    github,
-    owner,
-    pullRequestCreator,
-    pullRequestNumber,
-    repo,
-  });
-  const { commentaries, reviewers } = await fetchPullRequestReviewers({
-    github,
-    owner,
-    pullRequestNumber,
-    repo
-  });
+  const [coAuthors, { commentaries, reviewers }] = await Promise.all([
+    fetchPullRequestCoAuthors({
+      github,
+      owner,
+      pullRequestCreator,
+      pullRequestNumber,
+      repo,
+    }),
+    fetchPullRequestReviewers({
+      github,
+      owner,
+      pullRequestNumber,
+      repo
+    })
+  ]);
+
+  info(`Co-authors: ${JSON.stringify(coAuthors)}`);
+  info(`Commentaries: ${JSON.stringify(commentaries)}`);
+  info(`Reviewers: ${JSON.stringify(reviewers)}`);
+
+  const mergeMethod = ref.includes("story/") ? "rebase" : "squash";
+
+  let commitTitle, commitMessage;
+  if (mergeMethod === "squash") {
+  // Same syntax GitHub uses by default.
+    commitTitle = `${title} (#${pullRequestNumber})`;
+    commitMessage = getSquashedCommitMessage({ body, coAuthors, commentaries, reviewers });
+  }
 
   try {
-    info("Attempting merge");
+    info(`Attempting merge ${ref}`);
     await github.pulls.merge({
-      commit_message: getSquashedCommitMessage({ body, coAuthors, commentaries, reviewers }),
-      // Same syntax GitHub uses by default.
-      commit_title: `${title} (#${pullRequestNumber})`,
-      merge_method: "squash",
+      commit_message: commitMessage,
+      commit_title: commitTitle,
+      merge_method: mergeMethod,
       owner,
       pull_number: pullRequestNumber,
       repo,
