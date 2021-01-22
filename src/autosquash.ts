@@ -408,7 +408,7 @@ const merge = async ({
   }
 
   try {
-    info(`Attempting merge ${ref}`);
+    info(`Attempting merge ${ref} via ${mergeMethod}`);
     await github.pulls.merge({
       commit_message: commitMessage,
       commit_title: commitTitle,
