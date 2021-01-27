@@ -2,10 +2,7 @@ import { error as logError, info, warning, group } from "@actions/core";
 import type { GitHub } from "@actions/github";
 import type { Context } from "@actions/github/lib/context";
 import type {
-  WebhookPayloadCheckRun,
-  WebhookPayloadPullRequest,
-  WebhookPayloadPullRequestReview,
-  WebhookPayloadStatus,
+  EventPayloads
 } from "@octokit/webhooks";
 import type { Octokit } from "@octokit/rest";
 import * as assert from "assert";
@@ -25,10 +22,10 @@ type MergeableState =
   | "unstable";
 
 type WebhookPayload =
-  | WebhookPayloadCheckRun
-  | WebhookPayloadPullRequest
-  | WebhookPayloadPullRequestReview
-  | WebhookPayloadStatus;
+  | EventPayloads.WebhookPayloadCheckRun
+  | EventPayloads.WebhookPayloadPullRequest
+  | EventPayloads.WebhookPayloadPullRequestReview
+  | EventPayloads.WebhookPayloadStatus;
 
 type Author = {
   email: string;
@@ -468,7 +465,7 @@ const autosquash = async ({
   } = context.payload as WebhookPayload;
 
   if (eventName === "check_run") {
-    const payload = context.payload as WebhookPayloadCheckRun;
+    const payload = context.payload as EventPayloads.WebhookPayloadCheckRun;
     if (payload.action === "completed") {
       const pullRequestNumbers = payload.check_run.pull_requests.map(
         ({ number }) => number,
@@ -494,7 +491,7 @@ const autosquash = async ({
       });
     }
   } else if (eventName === "pull_request") {
-    const payload = context.payload as WebhookPayloadPullRequest;
+    const payload = context.payload as EventPayloads.WebhookPayloadPullRequest;
     if (payload.action === "closed" && payload.pull_request.merged) {
       const {
         pull_request: {
@@ -551,7 +548,7 @@ const autosquash = async ({
       }
     }
   } else if (eventName === "pull_request_review") {
-    const payload = context.payload as WebhookPayloadPullRequestReview;
+    const payload = context.payload as EventPayloads.WebhookPayloadPullRequestReview;
     if (payload.action === "submitted" && payload.review.state === "approved") {
       const pullRequestNumber = payload.pull_request.number;
       info(`Consider merging ${getPullRequestId(pullRequestNumber)}`);
@@ -573,7 +570,7 @@ const autosquash = async ({
       }
     }
   } else if (eventName === "status") {
-    const payload = context.payload as WebhookPayloadStatus;
+    const payload = context.payload as EventPayloads.WebhookPayloadStatus;
     if (payload.state === "success") {
       info(`Merge all pull requests on commit ${payload.sha}`);
       await handleSearchedPullRequests({
