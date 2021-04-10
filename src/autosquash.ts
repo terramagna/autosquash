@@ -395,7 +395,7 @@ const merge = async ({
   info(`Commentaries: ${JSON.stringify(commentaries)}`);
   info(`Reviewers: ${JSON.stringify(reviewers)}`);
 
-  const mergeMethod = ref.includes("story/") ? "rebase" : "squash";
+  const mergeMethod = ref.includes("story/") || ref.includes("fix-backport/") ? "rebase" : "squash";
 
   let commitTitle, commitMessage;
   if (mergeMethod === "squash") {
