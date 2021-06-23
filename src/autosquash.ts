@@ -5,7 +5,6 @@ import type {
   EventPayloads
 } from "@octokit/webhooks";
 import type { Octokit } from "@octokit/rest";
-import * as assert from "assert";
 import promiseRetry from "promise-retry";
 import { filterBody } from "./filter-body";
 
@@ -110,17 +109,14 @@ const fetchPullRequest = async ({
           pull_number: pullRequestNumber,
           repo,
         });
-        assert(
-          pullRequest.closed_at !== null ||
-            (pullRequest.mergeable_state as MergeableState) !== "unknown",
-        );
         return pullRequest;
       } catch (error) {
+        logError(error);
         info("Refetching details to know mergeable state");
         return retry(error);
       }
     },
-    { minTimeout: 250 },
+    { minTimeout: 30 },
   );
 };
 
